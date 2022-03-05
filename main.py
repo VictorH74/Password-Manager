@@ -1,0 +1,171 @@
+import tkinter as tk
+import characters as char
+from random import choice, randint, shuffle
+from tkinter import messagebox as mb # PARA CRIAÇÃO DE POP-UPS
+import pyperclip # -> MODULO PARA FUNÇÕES DO CLIPBOARD DE COPIAR/COLAR (copy/paste)
+# --------------------------- PASSWORD GENERATOR -------------------------- #
+def generate_password():
+    
+    def password_copied():
+        bt_generate_pass.config(text="Generate Password", bg="#D3D3D3")
+    
+    password_all_char = [choice(char.all_characters) for i in range(randint(6, 10))]
+    password_numbers = [choice(char.numbers) for i in range(randint(2, 3))]
+    password_symbols = [choice(char.symbols) for i in range(randint(3, 5))]
+    
+    password_list = password_all_char + password_numbers + password_symbols
+        
+    shuffle(password_list) # -> ALTERAR ALEATORIAMENTE A POSIÇÃO DE CADA CARACTERE DA VARIAVEL
+    
+    password = "".join(password_list) # -> PRATICAMENTE MESMA FUNÇÃO QUE O CODIGO COMENTADO ABAIXO
+    
+    #password = ""
+    #for c in password_list:
+    #    password += c
+    
+    password_input.delete(0, tk.END)
+    password_input.insert(0, password)
+    
+    pyperclip.copy(password) # -> METODO PARA COPIAR TEXTO AUTOMATICAMENTE
+    
+    bt_generate_pass.config(text="Password was copied", bg="#90EE90")
+    
+    window.after(3000, password_copied)
+    
+
+# ----------------------------- SAVE PASSWORD ----------------------------- #
+def add():
+    website = website_input.get().title()
+    email = email_combobox.get()
+    if email not in emails_list:
+        with open("emails.txt", "a") as emails:
+            emails.write(f"{email}\n")
+        emails_list.append(email)
+    password = password_input.get()
+    
+    if len(website) == 0 or len(password) == 0:
+        mb.showerror(title="Oops", message="Please make sure you haven't left any fields empty.")
+    else:
+        message_str = f"This are the details entered: \nEmail: {email}\nPassword: {password}\n Is it ok to save?"
+        is_ok = mb.askokcancel(title="Website", message=message_str) # ok or cancel -> RETORNAR "True" OU "False"
+        
+        if is_ok:
+            try:
+                email_passwords = passwords_dict[email] # Armazenando lista(Valor) antigo em uma var
+            except KeyError:
+                email_passwords = []
+                
+            email_passwords.append(f"--> {password} | {website}") # Acrescentando novo conteudo na lista da var
+            
+            passwords_dict[email] = email_passwords # Atribuindo lista da var como novo valor
+            with open("Passwords.txt", 'w') as file:
+                for (key, values) in passwords_dict.items():
+                    val_str = '\n'.join(values)
+                    file.write(f'''{key}\n{val_str}\n\n''')
+                    
+            website_input.delete(0, tk.END)
+            password_input.delete(0, tk.END)
+            
+            mb.showinfo(title="Success", message="Password was save successfully")
+
+# ------------------------------- UI SETUP -------------------------------- #
+
+
+window = tk.Tk()
+window.title("Password Manager")
+window.config(padx=50, pady=50, bg="#A9A9A9")
+window.maxsize(width=800, height=700)
+
+logo = tk.PhotoImage(file="logo.png")
+
+# Canvas
+container_img = tk.Canvas(width=200, height=200, bg="#A9A9A9", highlightthickness=0)
+container_img.create_image(100, 100, image=logo)
+container_img.grid(column=1, row=0)
+
+
+# Dados das senhas
+try:
+    with open('Passwords.txt', 'r') as file:
+        file_data = file.readlines()
+except FileNotFoundError:
+    with open('Passwords.txt', 'w') as file:
+        pass
+    with open('Passwords.txt', 'r') as file:
+        file_data = file.readlines()
+        
+key = ""
+values = []
+passwords_dict = {}
+for item in file_data:
+    if item.count("@gmail.com") == 1:
+        if len(key) > 0 and len(values) > 0:
+            passwords_dict[key] = values
+            key = ""
+            values = []
+            
+        key = item.strip()
+    else:
+        if len(item.strip()) == 0:
+            pass
+        else:
+            values.append(item.strip())
+if len(key) > 0 and len(values) > 0:
+    passwords_dict[key] = values
+
+
+# Labels
+website_label = tk.Label(text="Website:", bg="#A9A9A9", pady=2)
+#website_label.bind('<Enter>', lambda e: website_label.configure(text='Moved mouse inside'))
+#website_label.bind('<Leave>', lambda e: website_label.configure(text='Website'))
+website_label.grid(column=0, row=1, sticky="e") # sticky="e" -> GRUDAR NO LADO LESTE(east)
+
+user_label = tk.Label(text="Email/Username:", bg="#A9A9A9", pady=2)
+user_label.grid(column=0, row=2, sticky="e")
+
+password_label = tk.Label(text="Password:", bg="#A9A9A9", pady=2)
+password_label.grid(column=0, row=3, sticky="e")
+
+
+# Entries
+website_input = tk.Entry()
+website_input.focus() # FOCAR NO INPUT AUTOMATICAMENTE PARA DIGITAR SEM PRECISAR USAR O MOUSE
+website_input.grid(column=1, row=1, columnspan=2, sticky="ew")  # sticky="ew" -> GRUDAR NOS LADOS LESTE(east) E OESTE(west)
+
+#user_input = tk.Entry()
+#user_input.insert(0, "vyctor7410@gmail.com") # 1° PARAM: POSIÇÃO(0 -> INICIO / END -> FINAL) / 2° PARAM: PLACEHOLDER
+
+password_input = tk.Entry(width=32)
+password_input.grid(column=1, row=3, sticky="w")
+
+# Combobox
+try:
+    with open("emails.txt") as file_emails:
+        data_emails = file_emails.readlines() # -> LISTA DE VALORES PARA COMBOBOX
+except FileNotFoundError:
+    with open("emails.txt", "w") as file_emails:
+        pass
+    with open("emails.txt") as file_emails:
+        data_emails = file_emails.readlines()
+
+emails_list = [email.strip() for email in data_emails]
+from tkinter import ttk
+emails = tk.StringVar() # -> TIPO DE VALOR QUE SERÁ ARMAZENADO NO COMBOBOX
+email_combobox = ttk.Combobox(textvariable=emails) # -> CRIANDO OBJ COMBOBOX
+#email_list = ['vyctor7410@gmail.com', 'victorh.almeida7@gmail.com', 'vyctorh49@gmail.com']
+email_combobox.config(values=emails_list) # -> APLICAR LISTA AO COMBOBOX
+if len(emails_list) > 0:
+    email_combobox.current(0) # -> DEFINIR VALOR NA POSIÇÃO (0) COMO SELECIONADO
+email_combobox.grid(column=1, row=2, columnspan=2, sticky="we")
+
+# Buttons
+bt_generate_pass = tk.Button(text="Generate Password", bg="#D3D3D3", width=17, command=generate_password, activebackground="#A9A9A9")
+bt_generate_pass.grid(column=2, row=3)
+
+bt_add = tk.Button(text="Add", command=add, bg="#D3D3D3", activebackground="#A9A9A9")
+bt_add.grid(column=1, row=4, columnspan=2, sticky="we")
+
+
+
+
+window.mainloop()
